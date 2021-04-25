@@ -5,7 +5,7 @@ import { getPrismicClient } from '../services/prismic';
 import {FiCalendar, FiUser} from 'react-icons/fi'
 import commonStyles from '../styles/common.module.scss';
 import {format} from 'date-fns'
-
+import {postFormatter} from '../utils/prismicResponseFormatter'
 import ptBR from 'date-fns/locale/pt-BR'
 import styles from './home.module.scss';
 import Header from '../components/Header';
@@ -38,21 +38,15 @@ interface HomeProps {
 
 
    async function carregarMaisPosts(){
-    console.log(nextPage);
-    const results2 = await fetch(nextPage).then(response => response.json()).then(data => data.results)
-    console.log(results2);
-    const maisPosts : Post[] = results2.map( result => ({
-      uid: result.uid,
-      first_publication_date: format(new Date(result.first_publication_date),'dd MMM yyyy' , {locale:ptBR }),
-      data: {
-      title: result.data.title,
-      subtitle: result.data.subtitle,
-      author: result.data.author,
-    }
-    }))
-    setPosts([...posts,...maisPosts ])
-    setNextPage('')
-    console.log(posts);
+   const result = await fetch(nextPage ? nextPage : '').then(response => response.json()).then(data => {
+      const dataFormatted = postFormatter(data);
+      setPosts([...posts , ...dataFormatted.results])
+      setNextPage(dataFormatted.next_page);
+
+      return dataFormatted
+    } )
+
+   console.log(result)
   }
 
 
@@ -81,9 +75,9 @@ interface HomeProps {
          </Link>
         ))}
         {nextPage && (
-          <a href='#' onClick={carregarMaisPosts} className={styles.homeFooter}>
+          <button  onClick={carregarMaisPosts} className={styles.homeFooter}>
             Carregar mais posts
-          </a>
+          </button>
 
         )}
   {/*
