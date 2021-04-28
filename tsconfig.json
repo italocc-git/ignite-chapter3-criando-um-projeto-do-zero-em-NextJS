@@ -23,7 +23,7 @@
     "**/*.ts",
     "**/*.tsx",
     "**/*.spec.tsx"
-  ],
+, "src/pages/_document.jsx"  ],
   "exclude": [
     "node_modules"
   ]

@@ -10,10 +10,14 @@ import ptBR from 'date-fns/locale/pt-BR'
 import Head from "next/head"
 import { RichText } from 'prismic-dom';
 import { useRouter } from 'next/router';
-
+import Link from 'next/Link';
+import {UtterancComments} from '../../components/UtterancComments'
+import {PreviewButton} from '../../components/PreviewButton'
+import { useState } from 'react';
 
 interface Post {
   first_publication_date: string | null;
+  last_publication_date: string | null;
   data: {
     title: string;
     banner: {
@@ -29,20 +33,32 @@ interface Post {
   };
 }
 
-interface PostProps {
-  post: Post;
+interface PreviousPost  {
+  uid? : string;
+  title?: string;
+}
+interface NextPost  {
+  uid? : string;
+  title?: string;
 }
 
-export default function Post({ post }: PostProps) {
-  console.log(post)
+interface PostProps {
+  post: Post;
+  previousPost? : PreviousPost
+  nextPost ?: NextPost
+}
+
+export default function Post({ post , previousPost, nextPost}: PostProps) {
+
   const router = useRouter();
 
   if(router.isFallback){
     console.log('Carregando dados do Prismic ...')
     return <p>Carregando... </p>
   }
-  const dateFormatted = format(new Date(post.first_publication_date), 'dd MMM yyyy', { locale: ptBR })
+  const publicationDateFormatted = format(new Date(post.first_publication_date), 'dd MMM yyyy', { locale: ptBR })
 
+  const lastEditionDateFormatted = format(new Date(post.last_publication_date), "'*editado em 'dd MMM yyyy',às 'HH:MM " , {locale:ptBR})
   const totalWords = post.data.content.reduce((total , element) => {
     const totalHeading = element.heading.split(' ').length
 
@@ -73,7 +89,7 @@ export default function Post({ post }: PostProps) {
         <div className={styles.postDetails}>
           <div className={styles.postDetailsItem}>
             <FiCalendar />
-            <span>{dateFormatted}</span>
+            <span>{publicationDateFormatted}</span>
           </div>
           <div className={styles.postDetailsItem}>
             <FiUser />
@@ -83,6 +99,9 @@ export default function Post({ post }: PostProps) {
             <FiClock />
             <span>{` ${wordsPerMinute} min`} </span>
           </div>
+        </div>
+        <div className={styles.postLastUpdate}>
+          <span>{lastEditionDateFormatted}</span>
         </div>
         <div className={styles.postContent}>
           {post.data.content.map(content => (
@@ -97,6 +116,31 @@ export default function Post({ post }: PostProps) {
           ))}
 
         </div>
+        <div className={styles.postContentFooterLine} />
+        <div className={styles.postContentFooter}>
+          {previousPost.title && (
+          <div className={styles.postContentFooterItem}>
+            <p>{previousPost.title}</p>
+            <Link href={`/post/${previousPost.uid}`}>
+              <a >post anterior</a>
+            </Link>
+
+          </div>
+          )}
+          {nextPost.title && (
+            <div className={styles.postContentFooterItem}>
+              <p>{nextPost.title}</p>
+              <Link href={`/post/${nextPost.uid}`}>
+                <a >próximo post</a>
+              </Link>
+
+            </div>
+          )}
+
+        </div>
+
+       <UtterancComments />
+       <PreviewButton/>
       </div>
     </>
   )
@@ -106,7 +150,9 @@ export default function Post({ post }: PostProps) {
 
 
 export const getStaticPaths: GetStaticPaths = async () => {
+
   const prismic = getPrismicClient();
+
     const {results} = await prismic.query(
       [Prismic.predicates.at('document.type','posts')],
       {
@@ -122,7 +168,6 @@ export const getStaticPaths: GetStaticPaths = async () => {
    console.log(paths)
   return {
     paths: paths,
-
     fallback: true
   }
   //   // TODO
@@ -130,17 +175,27 @@ export const getStaticPaths: GetStaticPaths = async () => {
 
 export const getStaticProps: GetStaticProps = async context => {
 
-  const { slug } = context.params;
-
+  const { slug  } = context.params;
   const prismic = getPrismicClient();
+
+
   const response = await prismic.getByUID('posts', String(slug), {});
   /* console.log(JSON.stringify(response, null , 2));
 */
 
+  if(!response) { //Caso não retorne nada a requisição
+    return{
+      redirect:{
+        destination:'/',
+        permanent:false
+      }
+    }
+  }
 
   const post   = {
     uid: response.uid,
     first_publication_date : response.first_publication_date,
+    last_publication_date : response.last_publication_date,
     data: {
       title: response.data.title,
       subtitle: response.data.subtitle,
@@ -157,10 +212,43 @@ export const getStaticProps: GetStaticProps = async context => {
 
   }
 
+  const responsePreviousPost = (
+    await prismic.query(
+    Prismic.predicates.dateBefore(
+      'document.first_publication_date',
+      response.first_publication_date
+    ),
+    { orderings: '[document.first_publication_date]'}
+  )
+  ).results.pop()
+
+  const previousPost = {
+    uid: responsePreviousPost?.uid ? responsePreviousPost.uid : '',
+    title: responsePreviousPost?.data.title ? responsePreviousPost.data.title : '',
+  }
+
+   const responseNextPost = (
+    await prismic.query(
+    Prismic.predicates.dateAfter(
+    'document.first_publication_date',
+    response.first_publication_date
+    ),
+    { orderings: '[document.first_publication_date]' }
+  )).results[0]
+
+  const nextPost = {
+    uid: responseNextPost?.uid ? responseNextPost.uid : '',
+    title: responseNextPost?.data.title ? responseNextPost.data.title : '',
+  }
+
+
   //   // TODO
   return {
     props: {
-      post
+      previousPost,
+      post,
+      nextPost
+
     },
     revalidate: 60*60*12
   }

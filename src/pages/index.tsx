@@ -9,7 +9,7 @@ import {postFormatter} from '../utils/prismicResponseFormatter'
 import ptBR from 'date-fns/locale/pt-BR'
 import styles from './home.module.scss';
 import Header from '../components/Header';
-import { useEffect, useState } from 'react';
+import {  useState } from 'react';
 
 interface Post {
   uid?: string;
@@ -22,12 +22,14 @@ interface Post {
 }
 
 interface PostPagination {
+
   next_page: string;
   results: Post[];
 }
 
 interface HomeProps {
   postsPagination: PostPagination;
+
 }
 
  export default function Home({postsPagination}:HomeProps) {
@@ -80,13 +82,12 @@ interface HomeProps {
           </button>
 
         )}
-  {/*
-         <button type='button' onClick={carregarMaisPosts}>Carregar mais posts</button>*/}
-      </>
+
+    </>
   )
  }
 
- export const getStaticProps : GetStaticProps= async () => {
+ export const getStaticProps : GetStaticProps = async () => {
     const prismic = getPrismicClient();
     const postsResponse = await prismic.query(
       [
@@ -99,7 +100,6 @@ interface HomeProps {
       }
     );
       /* console.log(postsResponse.results) */
-
 
       /* console.log(nextPage) */
       const posts :Post[] = postsResponse.results.map(post => ({
@@ -120,6 +120,7 @@ return {
     postsPagination : {
       next_page : nextPage,
       results :posts,
+
 
    }
   }
